@@ -1,0 +1,55 @@
+# Docker Hub images to mirror to GHCR from Kyverno test suites.
+#
+# Only Docker Hub images are mirrored — this registry is subject to
+# pull rate limits. GHCR, registry.k8s.io, and gcr.io don't rate-limit
+# and are pulled directly.
+#
+# Each source group defines:
+#   name     — unique identifier (used as the matrix key in CI)
+#   registry — source registry hostname
+#   images   — list of image paths relative to the registry
+#
+# Regenerate image list: ./scripts/extract-images.sh ../kyverno/test
+
+target:
+  registry: ghcr.io
+  # {owner} is replaced at runtime with the GitHub repository owner
+  # Example: ghcr.io/alice/test-images/mirror/nginx:latest
+  prefix: "{owner}/test-images/mirror"
+
+sources:
+  - name: dockerhub
+    registry: docker.io
+    images:
+      - alpine:latest
+      - bash:5
+      - busybox
+      - busybox:1.11
+      - busybox:1.28
+      - busybox:1.35
+      - busybox:1.35.0
+      - busybox:latest
+      - busybox:stable
+      - cassandra:latest
+      - ghost:latest
+      - nginx
+      - nginx:1.1.9
+      - nginx:1.12
+      - nginx:1.14
+      - nginx:1.14.2
+      - nginx:1.21
+      - nginx:1.25.1
+      - nginx:1.7.9
+      - nginx:alpine
+      - nginx:latest
+      - python:3.9-slim
+      - redis:latest
+      - ubuntu:bionic
+      - ubuntu:latest
+      - "arm64v8/busybox@sha256:fa8dc70514f29471fe118446e3f84040b19791531ec197836a4f43baf13d744b"
+      - datadog/agent:7.36.0
+      - hashicorp/http-echo:0.2.3
+      - kubesphere/kube-rbac-proxy:v0.8.0
+      - nickchase/rss-php-nginx:v1
+      - nginxinc/nginx-unprivileged
+      - prom/node-exporter:v0.18.1

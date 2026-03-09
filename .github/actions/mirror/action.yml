@@ -1,0 +1,80 @@
+name: Mirror container images
+description: Copy container images from a source registry to GHCR using crane, driven by mirror.yaml.
+
+inputs:
+  source:
+    description: Source name from mirror.yaml to process
+    required: true
+  image:
+    description: Single image (path) from the source to mirror
+    required: true
+  mirror-file:
+    description: Path to the mirror.yaml file
+    required: false
+    default: mirror.yaml
+  target-owner:
+    description: GHCR owner (org or user) for the target prefix
+    required: true
+  dry-run:
+    description: Log only, don't copy
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Mirror image (${{ inputs.image }}) from ${{ inputs.source }}
+      shell: bash
+      env:
+        SOURCE_NAME: ${{ inputs.source }}
+        IMAGE: ${{ inputs.image }}
+        MIRROR_FILE: ${{ inputs.mirror-file }}
+        TARGET_OWNER: ${{ inputs.target-owner }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        set -euo pipefail
+
+        TARGET_REGISTRY=$(yq '.target.registry' "$MIRROR_FILE")
+        TARGET_PREFIX=$(yq '.target.prefix' "$MIRROR_FILE" | sed "s/{owner}/$TARGET_OWNER/")
+
+        REGISTRY=$(yq ".sources[] | select(.name == \"$SOURCE_NAME\") | .registry" "$MIRROR_FILE")
+
+        build_target() {
+          local image="$1"
+          local repo_path="$image"
+          local target_repo target_ref
+
+          if [[ "$repo_path" == *"@sha256:"* ]]; then
+            target_repo="${repo_path%%@sha256:*}"
+            target_ref="@sha256:${repo_path#*@sha256:}"
+          elif [[ "$repo_path" == *":"* ]]; then
+            target_repo="${repo_path%:*}"
+            target_ref=":${repo_path##*:}"
+          else
+            target_repo="$repo_path"
+            target_ref=":latest"
+          fi
+
+          echo "${TARGET_REGISTRY}/${TARGET_PREFIX}/${target_repo}${target_ref}"
+        }
+
+        src="${REGISTRY}/${IMAGE}"
+        target=$(build_target "$IMAGE")
+
+        echo "::group::Mirror $src -> $target"
+
+        if [[ "$DRY_RUN" == "true" ]]; then
+          echo "[DRY RUN] Would copy: $src -> $target"
+          echo "::endgroup::"
+          exit 0
+        fi
+
+        if crane copy "$src" "$target" 2>&1; then
+          echo "Copied successfully"
+        else
+          echo "::error::Failed to copy $src"
+          echo "::endgroup::"
+          exit 1
+        fi
+
+        echo "::endgroup::"
